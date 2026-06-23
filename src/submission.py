@@ -200,6 +200,9 @@ class ACAgent:
         obs, action, _, _, _ = utils.to_torch(batch, self.device)
 
         # *** START CODE HERE ***
+        actor_output = self.actor(obs)
+        loss = nn.MSELoss()(actor_output, action)
+        metrics["bc_loss"] = loss.item()
         # *** END CODE HERE ***
 
         return metrics
