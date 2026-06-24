@@ -136,6 +136,29 @@ class ACAgent:
         obs, action, reward, discount, next_obs = utils.to_torch(batch, self.device)
 
         # *** START CODE HERE ***
+        # Sample next state actions from the policy
+        with torch.no_grad():
+            dist = self.actor(next_obs)
+            next_action = dist.sample(clip=self.stddev_clip)
+
+            # Compute the Bellman targets
+            target_Qs = self.critic_target(next_obs, next_action)
+            idxs = random.sample(range(len(target_Qs)), 2)
+            Qi_target, Qj_target = target_Qs[idxs[0]], target_Qs[idxs[1]]
+            y = reward + discount * torch.minimum(Qi_target, Qj_target)
+
+        # Compute the loss
+        Qi = self.critic.forward(obs, action)
+        loss = sum(F.mse_loss(Q, y) for Q in Qi)
+        self.critic_opt.zero_grad()
+        loss.backward()
+
+        # Take a gradient step with respect to the critic parameters.
+        self.critic_opt.step()
+
+        # Update the target critic parameters using exponential moving average
+        utils.soft_update_params(self.critic, self.critic_target, self.critic_target_tau)
+
         # *** END CODE HERE ***
 
         #####################
@@ -200,8 +223,10 @@ class ACAgent:
         obs, action, _, _, _ = utils.to_torch(batch, self.device)
 
         # *** START CODE HERE ***
-        actor_output = self.actor(obs)
-        loss = nn.MSELoss()(actor_output, action)
+        actor_output = self.actor.forward(obs).rsample()
+        loss = nn.functional.mse_loss(actor_output, action)
+        loss.backward()
+        self.actor_opt.step()
         metrics["bc_loss"] = loss.item()
         # *** END CODE HERE ***
 
