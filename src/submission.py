@@ -191,6 +191,16 @@ class ACAgent:
         obs, _, _, _, _ = utils.to_torch(batch, self.device)
 
         # *** START CODE HERE ***
+        dist = self.actor(obs)
+        sampled_action = dist.sample(clip=self.stddev_clip)
+
+        Qi = self.critic(obs, sampled_action)
+        loss = -torch.mean(torch.stack(Qi))
+
+        self.actor_opt.zero_grad()
+        loss.backward()
+        self.actor_opt.step()
+        metrics["actor_loss"] = loss.item()
         # *** END CODE HERE ***
 
         return metrics
