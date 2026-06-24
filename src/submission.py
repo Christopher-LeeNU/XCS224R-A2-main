@@ -233,8 +233,9 @@ class ACAgent:
         obs, action, _, _, _ = utils.to_torch(batch, self.device)
 
         # *** START CODE HERE ***
-        actor_output = self.actor.forward(obs).rsample()
-        loss = nn.functional.mse_loss(actor_output, action)
+        actor_output = self.actor.forward(obs).mean
+        loss = F.mse_loss(actor_output, action)
+        self.actor_opt.zero_grad()
         loss.backward()
         self.actor_opt.step()
         metrics["bc_loss"] = loss.item()
